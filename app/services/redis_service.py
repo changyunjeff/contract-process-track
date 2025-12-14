@@ -6,7 +6,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
-from redis.exceptions import ConnectionError, TimeoutError
+from redis.exceptions import ConnectionError, TimeoutError, AuthenticationError, ResponseError
 
 from app.config import get_redis_config
 from app.configs import RedisConfig
@@ -41,9 +41,21 @@ class RedisService:
             if password is None:
                 password = os.getenv("REDIS_PASSWORD")
 
+            # Log password status (without exposing the actual password)
+            if password:
+                logger.debug(f"🔐 Using Redis password (length: {len(password)})")
+            else:
+                logger.warning("⚠️ No Redis password configured - connection may fail if Redis requires authentication")
+
+            # Build connection URL
+            # Only include password in URL if it's provided
+            if password:
+                redis_url = f"redis://:{password}@{self.config.host}:{self.config.port}/{self.config.db}"
+            else:
+                redis_url = f"redis://{self.config.host}:{self.config.port}/{self.config.db}"
+
             self._client = aioredis.from_url(
-                f"redis://{self.config.host}:{self.config.port}/{self.config.db}",
-                password=password,
+                redis_url,
                 decode_responses=self.config.decode_responses,
                 socket_timeout=self.config.socket_timeout,
                 socket_connect_timeout=self.config.socket_connect_timeout,
@@ -56,11 +68,34 @@ class RedisService:
                 f"✅ Redis connected successfully to {self.config.host}:{self.config.port}/{self.config.db}"
             )
 
+        except (AuthenticationError, ResponseError) as e:
+            error_msg = str(e)
+            if "Authentication required" in error_msg or "AUTH" in error_msg.upper():
+                logger.error(
+                    f"❌ Redis authentication failed: {error_msg}\n"
+                    f"   💡 Redis server requires a password. Please set one of the following:\n"
+                    f"      - Set REDIS_PASSWORD environment variable\n"
+                    f"      - Add 'password' field to Redis config in config file\n"
+                    f"      - Or configure Redis to not require authentication"
+                )
+            else:
+                logger.error(f"❌ Redis authentication error: {error_msg}")
+            raise
         except (ConnectionError, TimeoutError) as e:
             logger.error(f"❌ Failed to connect to Redis: {str(e)}")
             raise
         except Exception as e:
-            logger.error(f"❌ Unexpected error connecting to Redis: {str(e)}")
+            error_msg = str(e)
+            if "Authentication required" in error_msg:
+                logger.error(
+                    f"❌ Redis authentication failed: {error_msg}\n"
+                    f"   💡 Redis server requires a password. Please set one of the following:\n"
+                    f"      - Set REDIS_PASSWORD environment variable\n"
+                    f"      - Add 'password' field to Redis config in config file\n"
+                    f"      - Or configure Redis to not require authentication"
+                )
+            else:
+                logger.error(f"❌ Unexpected error connecting to Redis: {error_msg}")
             raise
 
     async def disconnect(self) -> None:

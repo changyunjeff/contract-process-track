@@ -16,6 +16,7 @@ def setup_routers(fastapi_app: FastAPI):
     # 这确保所有路由在注册前都被添加到注册器中
     # 注意：使用 from ... import 避免覆盖函数参数
     from app import api  # noqa: F401
+    from app.api import v1  # noqa: F401
 
     api_prefix = "/api"
 

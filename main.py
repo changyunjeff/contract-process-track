@@ -22,7 +22,7 @@ from app.services.redis_service import init_redis_service, close_redis_service
 
 
 # Load .env file from project root if it exists
-env_path = Path(__file__).parent.parent / ".env"
+env_path = Path(__file__).parent / ".env"
 if env_path.exists():
     load_dotenv(env_path)
 
@@ -56,6 +56,12 @@ def create_app(app_config: AppConfig | None = None) -> FastAPI:
     
     if app_config is None:
         app_config = get_app_config()
+
+    # 标记这是真正的应用启动（不是reloader进程的预检查）
+    # 在reload模式下，reloader进程会先导入模块检查代码，但不会调用create_app
+    # 只有当真正启动server时，才会调用create_app
+    # 所以我们在这里设置环境变量，标记这是server进程
+    os.environ["PROCESS_TRACK_SERVER"] = "true"
 
     setup_logging(is_debug_mode(os.getenv("MODE", "dev")))
 

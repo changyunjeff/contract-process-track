@@ -2,6 +2,8 @@
 全局单例路由注册器
 负责管理项目中所有路由的注册，支持路由类型、优先级和验证阶段
 """
+import os
+import sys
 from enum import Enum
 from typing import Optional, Callable, Dict, List, Any, Tuple
 from dataclasses import dataclass, field
@@ -98,7 +100,15 @@ class RouterRegistry:
         self._validator_class_names: Dict[int, set[str]] = {}  # 使用 int 作为键
         self._added_router_keys: set[str] = set()
         self._added_router_ids: set[int] = set()
+        self._has_printed_logs = False  # 标记是否已经打印过注册日志
         self._initialized = True
+        
+        # 检查当前进程是否应该打印日志
+        # 在uvicorn reload模式下，reloader进程会先导入模块检查代码
+        # 我们通过检查环境变量 PROCESS_TRACK_SERVER 来判断是否是真正的server进程
+        # 这个环境变量在 create_app 函数中设置
+        # 如果不存在，说明是reloader进程的预检查，不打印日志
+        self._is_server_process = os.environ.get("PROCESS_TRACK_SERVER") == "true"
 
         # 注册默认类型处理器
         self._register_default_handlers()
@@ -128,12 +138,16 @@ class RouterRegistry:
 
         class_name = validator.__class__.__name__
         if class_name in self._validator_class_names[type_value]:
-            print(f"⏭️  验证器已存在，跳过: {type_value} -> {class_name}")
+            # 只在server进程且首次注册时打印日志
+            if self._is_server_process and not self._has_printed_logs:
+                print(f"⏭️  验证器已存在，跳过: {type_value} -> {class_name}")
             return
 
         self._validators[type_value].append(validator)
         self._validator_class_names[type_value].add(class_name)
-        print(f"✅ 注册验证器: {type_value} -> {class_name}")
+        # 只在server进程且首次注册时打印日志
+        if self._is_server_process and not self._has_printed_logs:
+            print(f"✅ 注册验证器: {type_value} -> {class_name}")
 
     def register_type_handler(
             self,
@@ -181,7 +195,9 @@ class RouterRegistry:
         dedupe_key = f"{(name or router.prefix or 'unnamed')}|{getattr(router, 'prefix', '')}"
 
         if dedupe_id in self._added_router_ids or dedupe_key in self._added_router_keys:
-            print(f"⏭️  重复路由，跳过添加: {dedupe_key}")
+            # 只在server进程且首次注册时打印日志
+            if self._is_server_process and not self._has_printed_logs:
+                print(f"⏭️  重复路由，跳过添加: {dedupe_key}")
             return False
 
         # 确保 router_type 是 int 值（支持位标志组合）
@@ -200,10 +216,12 @@ class RouterRegistry:
         self._added_router_ids.add(dedupe_id)
         self._added_router_keys.add(dedupe_key)
         self._routers.append(router_metadata)
-        # 格式化类型显示（显示所有包含的类型）
-        type_names = [t.name for t in RouterType if RouterType.has_type(router_type_value, t)]
-        type_display = "|".join(type_names) if type_names else str(router_type_value)
-        print(f"📝 路由已添加到注册队列: {router_metadata.name} (类型: {type_display}, 优先级: {priority})")
+        # 只在server进程且首次添加时打印日志
+        if self._is_server_process and not self._has_printed_logs:
+            # 格式化类型显示（显示所有包含的类型）
+            type_names = [t.name for t in RouterType if RouterType.has_type(router_type_value, t)]
+            type_display = "|".join(type_names) if type_names else str(router_type_value)
+            print(f"📝 路由已添加到注册队列: {router_metadata.name} (类型: {type_display}, 优先级: {priority})")
         return True
 
     def _validate_router(self, metadata: RouterMetadata) -> Tuple[bool, Optional[str]]:
@@ -234,13 +252,14 @@ class RouterRegistry:
 
         return True, None
 
-    def _register_router(self, metadata: RouterMetadata, app: FastAPI) -> bool:
+    def _register_router(self, metadata: RouterMetadata, app: FastAPI, should_print: bool = True) -> bool:
         """
         注册单个路由到FastAPI应用
 
         Args:
             metadata: 路由元数据
             app: FastAPI应用实例
+            should_print: 是否打印日志
 
         Returns:
             bool: 是否注册成功
@@ -248,7 +267,8 @@ class RouterRegistry:
         # 验证路由
         is_valid, error_msg = self._validate_router(metadata)
         if not is_valid:
-            print(f"❌ 路由验证失败: {metadata.name} - {error_msg}")
+            if should_print:
+                print(f"❌ 路由验证失败: {metadata.name} - {error_msg}")
             self._failed_count += 1
             return False
 
@@ -268,20 +288,23 @@ class RouterRegistry:
             def default_handler(metadata: RouterMetadata, fastapi_app: FastAPI) -> None:
                 fastapi_app.include_router(metadata.router)
             handler = default_handler
-            type_names = [t.name for t in RouterType if RouterType.has_type(metadata.router_type, t)]
-            type_display = "|".join(type_names) if type_names else str(metadata.router_type)
-            print(f"⚠️  未找到类型处理器: {type_display}，使用默认处理器")
+            if should_print:
+                type_names = [t.name for t in RouterType if RouterType.has_type(metadata.router_type, t)]
+                type_display = "|".join(type_names) if type_names else str(metadata.router_type)
+                print(f"⚠️  未找到类型处理器: {type_display}，使用默认处理器")
 
         try:
             # 执行类型特定的注册逻辑
             handler(metadata, app)
-            type_names = [t.name for t in RouterType if RouterType.has_type(metadata.router_type, t)]
-            type_display = "|".join(type_names) if type_names else str(metadata.router_type)
-            print(f"✅ 路由注册成功: {metadata.name} (类型: {type_display}, 优先级: {metadata.priority})")
+            if should_print:
+                type_names = [t.name for t in RouterType if RouterType.has_type(metadata.router_type, t)]
+                type_display = "|".join(type_names) if type_names else str(metadata.router_type)
+                print(f"✅ 路由注册成功: {metadata.name} (类型: {type_display}, 优先级: {metadata.priority})")
             self._registered_count += 1
             return True
         except Exception as e:
-            print(f"❌ 路由注册异常: {metadata.name} - {str(e)}")
+            if should_print:
+                print(f"❌ 路由注册异常: {metadata.name} - {str(e)}")
             self._failed_count += 1
             return False
 
@@ -297,14 +320,17 @@ class RouterRegistry:
         Returns:
             Dict: 注册统计信息
         """
-        print("\n" + "=" * 60)
-        print("🚀 开始注册路由...")
-        print("=" * 60)
-
-        # 重置计数器
+        # 重置计数器（每次注册都重置，因为可能注册到不同的应用实例）
         self._registered_count = 0
         self._skipped_count = 0
         self._failed_count = 0
+
+        # 只在server进程且首次注册时打印详细日志
+        should_print = self._is_server_process and not self._has_printed_logs
+        if should_print:
+            print("\n" + "=" * 60)
+            print("🚀 开始注册路由...")
+            print("=" * 60)
 
         # 按优先级排序（优先级数字越小，优先级越高）
         sorted_routers = sorted(self._routers, key=lambda x: (x.priority, x.name))
@@ -312,20 +338,25 @@ class RouterRegistry:
         # 注册所有路由
         for metadata in sorted_routers:
             if not metadata.enabled:
-                print(f"⏭️  跳过已禁用的路由: {metadata.name}")
+                if should_print:
+                    print(f"⏭️  跳过已禁用的路由: {metadata.name}")
                 self._skipped_count += 1
                 continue
 
-            self._register_router(metadata, app)
+            # 注册路由（内部会根据 should_print 决定是否打印日志）
+            self._register_router(metadata, app, should_print=should_print)
 
-        # 打印统计信息
-        print("=" * 60)
-        print(f"📊 路由注册统计:")
-        print(f"   ✅ 成功注册: {self._registered_count}")
-        print(f"   ⏭️  跳过: {self._skipped_count}")
-        print(f"   ❌ 失败: {self._failed_count}")
-        print(f"   📝 总计: {len(self._routers)}")
-        print("=" * 60 + "\n")
+        # 只在首次注册时打印统计信息
+        if should_print:
+            print("=" * 60)
+            print(f"📊 路由注册统计:")
+            print(f"   ✅ 成功注册: {self._registered_count}")
+            print(f"   ⏭️  跳过: {self._skipped_count}")
+            print(f"   ❌ 失败: {self._failed_count}")
+            print(f"   📝 总计: {len(self._routers)}")
+            print("=" * 60 + "\n")
+            # 标记为已打印日志
+            self._has_printed_logs = True
 
         return {
             "registered": self._registered_count,
@@ -340,6 +371,9 @@ class RouterRegistry:
         self._registered_count = 0
         self._skipped_count = 0
         self._failed_count = 0
+        self._has_printed_logs = False
+        self._added_router_keys.clear()
+        self._added_router_ids.clear()
         print("🗑️  已清空所有路由")
 
     def get_statistics(self) -> Dict[str, Any]:
