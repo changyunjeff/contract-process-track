@@ -18,6 +18,7 @@ from app.my_logging import setup_logging
 from app.configs import AppConfig
 from app.config import get_app_config
 from app.router import setup_routers
+from app.services.redis_service import init_redis_service, close_redis_service
 
 
 # Load .env file from project root if it exists
@@ -32,9 +33,22 @@ logger = logging.getLogger(__name__)
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # =====================[ Start Up ]======================
     logger.info("🚀 Application starting up...")
+    
+    # Initialize Redis connection
+    try:
+        await init_redis_service()
+    except Exception as e:
+        logger.warning(f"⚠️ Redis initialization failed: {str(e)}. Continuing without Redis.")
+    
     yield
     # =====================[ Shut Down ]======================
     logger.info("🛑 Application shutting down...")
+    
+    # Close Redis connection
+    try:
+        await close_redis_service()
+    except Exception as e:
+        logger.warning(f"⚠️ Redis shutdown error: {str(e)}")
 
 
 def create_app(app_config: AppConfig | None = None) -> FastAPI:

@@ -3,7 +3,7 @@ from pydantic_yaml import parse_yaml_file_as, parse_yaml_raw_as, to_yaml_file
 import yaml
 import os
 
-from app.configs import AppConfig
+from app.configs import AppConfig, RedisConfig
 from app.configs import GlobalConfig
 
 
@@ -93,3 +93,7 @@ def get_global_config() -> GlobalConfig:
 
 def get_app_config() -> AppConfig:
     return get_global_config().app
+
+def get_redis_config() -> RedisConfig | None:
+    """Get Redis configuration from global config."""
+    return get_global_config().redis
