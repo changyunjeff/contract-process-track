@@ -1,0 +1,4 @@
+fastapi>=0.124.4
+pydantic-yaml>=1.6.0
+uvicorn[standard]>=0.30.0
+python-dotenv>=1.0.0

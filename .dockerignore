@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+*.md
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.pytest.ini
+
+# Static files (可选，如果需要上传文件到容器，可以注释掉)
+# static/
+
+# Config files (可选，如果需要使用挂载的配置文件，可以注释掉)
+config.*.yaml
+

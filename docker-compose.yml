@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: process_track
+    ports:
+      # 格式: "宿主机端口:容器端口"
+      # 根据 config.prod.yaml 中的 port 配置调整容器端口
+      - "8512:8512"
+    environment:
+      # 设置运行模式: dev, prod, test
+      - MODE=prod
+    volumes:
+      # 挂载配置文件（需要先创建 config.prod.yaml 文件）
+      # 如果文件不存在，注释掉这一行，应用将使用默认配置
+      - ./config.prod.yaml:/app/config.prod.yaml:ro
+      # 挂载日志目录（持久化日志）
+      - ./logs:/app/logs
+      # 挂载静态文件目录（如果需要上传文件）
+      - ./static:/app/static
+    restart: unless-stopped
+    healthcheck:
+      # 健康检查端点: /api/health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8512/api/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+

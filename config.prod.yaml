@@ -1,0 +1,5 @@
+app:
+  title: "Process Track"
+  port: 8512
+  host: "0.0.0.0"
+  version: "0.1.0"
