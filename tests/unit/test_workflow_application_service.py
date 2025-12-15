@@ -10,6 +10,7 @@ from app.domains.workflow.application.dto import (
     WorkflowProgressUpdateDTO,
 )
 from app.domains.workflow.domain.entities import WorkflowProgress
+from app.tools import current_timestamp_ms
 
 
 @pytest.mark.unit
@@ -49,8 +50,8 @@ class TestWorkflowProgressApplicationService:
             step_name="审批中",
             step_description="等待部门经理审批",
             metadata={"approver": "张三"},
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=current_timestamp_ms(),
+            updated_at=current_timestamp_ms(),
         )
         mock_repository.create = AsyncMock(return_value=created_entity)
 

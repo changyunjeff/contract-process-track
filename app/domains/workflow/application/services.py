@@ -12,6 +12,7 @@ from typing import Optional
 from ..domain.entities import WorkflowProgress
 from ..domain.repositories import IWorkflowProgressRepository
 from .dto import WorkflowProgressCreateDTO, WorkflowProgressUpdateDTO, WorkflowProgressDTO
+from app.tools import current_timestamp_ms
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class WorkflowProgressApplicationService:
         Returns:
             WorkflowProgressDTO: 创建的工作流进度DTO
         """
-        now = datetime.utcnow()
+        now = current_timestamp_ms()
         
         # 创建领域实体
         workflow_progress = WorkflowProgress(

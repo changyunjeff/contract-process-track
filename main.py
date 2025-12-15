@@ -142,6 +142,7 @@ if __name__ == "__main__":
         "host": cfg.host,
         "port": cfg.port,
         "reload": debug,
+        "workers": worker_count() if not debug else 1,
         "log_config": None,  # forbidden uvicorn default log config.
     }
     

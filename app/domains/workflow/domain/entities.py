@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
+from app.tools import current_timestamp_ms
 
 
 class WorkflowProgress(BaseModel):
@@ -23,8 +24,8 @@ class WorkflowProgress(BaseModel):
     step_name: Optional[str] = Field(None, description="当前步骤名称")
     step_description: Optional[str] = Field(None, description="当前步骤描述")
     metadata: Optional[Dict[str, Any]] = Field(None, description="额外的元数据信息")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
+    created_at: int = Field(..., description="创建时间")
+    updated_at: int = Field(..., description="更新时间")
 
     @field_validator("progress")
     @classmethod
@@ -62,7 +63,7 @@ class WorkflowProgress(BaseModel):
             else:
                 self.metadata = metadata
         
-        self.updated_at = datetime.utcnow()
+        self.updated_at = current_timestamp_ms()
 
     def is_completed(self) -> bool:
         """检查工作流是否已完成"""

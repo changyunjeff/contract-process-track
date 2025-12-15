@@ -13,6 +13,7 @@ from typing import Optional
 from ..domain.entities import WorkflowProgress
 from ..domain.repositories import IWorkflowProgressRepository
 from app.services.redis_service import get_redis_service
+from app.tools import datetime_to_timestamp_ms
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +97,8 @@ class RedisWorkflowProgressRepository(IWorkflowProgressRepository):
             step_name=progress_dict.get("step_name"),
             step_description=progress_dict.get("step_description"),
             metadata=progress_dict.get("metadata"),
-            created_at=datetime.fromisoformat(progress_dict["created_at"]),
-            updated_at=datetime.fromisoformat(progress_dict["updated_at"]),
+            created_at=datetime_to_timestamp_ms(datetime.fromisoformat(progress_dict["created_at"])),
+            updated_at=datetime_to_timestamp_ms(datetime.fromisoformat(progress_dict["updated_at"])),
         )
 
     async def delete(self, workflow_id: str) -> bool:
