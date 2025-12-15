@@ -19,6 +19,7 @@ from app.configs import AppConfig
 from app.config import get_app_config
 from app.router import setup_routers
 from app.services.redis_service import init_redis_service, close_redis_service
+from app.services.postgres_service import init_postgres_service, close_postgres_service
 
 
 # Load .env file from project root if it exists
@@ -39,6 +40,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await init_redis_service()
     except Exception as e:
         logger.warning(f"⚠️ Redis initialization failed: {str(e)}. Continuing without Redis.")
+
+    # Initialize PostgreSQL connection (engine & session factory)
+    try:
+        init_postgres_service()
+    except Exception as e:
+        logger.warning(
+            f"⚠️ PostgreSQL initialization failed: {str(e)}. "
+            f"Continuing without PostgreSQL."
+        )
     
     yield
     # =====================[ Shut Down ]======================
@@ -49,6 +59,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await close_redis_service()
     except Exception as e:
         logger.warning(f"⚠️ Redis shutdown error: {str(e)}")
+
+    # Dispose PostgreSQL engine
+    try:
+        await close_postgres_service()
+    except Exception as e:
+        logger.warning(f"⚠️ PostgreSQL shutdown error: {str(e)}")
 
 
 def create_app(app_config: AppConfig | None = None) -> FastAPI:

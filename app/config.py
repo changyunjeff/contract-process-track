@@ -3,11 +3,11 @@ from pydantic_yaml import parse_yaml_file_as, parse_yaml_raw_as, to_yaml_file
 import yaml
 import os
 
-from app.configs import AppConfig, RedisConfig
+from app.configs import AppConfig, RedisConfig, PostgresConfig
 from app.configs import GlobalConfig
 
 
-def _get_config_file(env: str) -> str|None:
+def _get_config_file(env: str) -> str | None:
     """
     1. According to the environment variable, get the configuration file path.
 
@@ -97,3 +97,8 @@ def get_app_config() -> AppConfig:
 def get_redis_config() -> RedisConfig | None:
     """Get Redis configuration from global config."""
     return get_global_config().redis
+
+
+def get_postgres_config() -> PostgresConfig | None:
+    """Get PostgreSQL configuration from global config."""
+    return get_global_config().postgres
