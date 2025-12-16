@@ -23,9 +23,16 @@ logger = logging.getLogger(__name__)
 class PostgresEnterpriseBasicInfoRepository(IEnterpriseBasicInfoRepository):
     """基于 PostgreSQL 的企业基础信息仓储实现"""
 
-    def __init__(self) -> None:
+    def __init__(self, db_name: str = "company_info_cn") -> None:
+        """
+        初始化仓储
+        
+        Args:
+            db_name: 数据库名称，默认为 'company_info_cn'
+        """
+        self._db_name = db_name
         self._session_factory: async_sessionmaker[AsyncSession] = (
-            get_async_session_factory()
+            get_async_session_factory(db_name)
         )
 
     async def _row_to_entity(self, row: Mapping[str, Any]) -> EnterpriseBasicInfo:

@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.models import HttpResponse
-from app.exceptions import NotFoundException, ServerUnavailableException, InternalServerException
+from app.exceptions import ServerUnavailableException, InternalServerException
 from app.domains.workflow.application.services import WorkflowProgressApplicationService
 from app.domains.workflow.application.dto import (
     WorkflowProgressCreateDTO,

@@ -19,6 +19,10 @@ class HttpResponse(BaseModel, Generic[T]):
     def error(cls, msg: str, data: T = None):
         return cls(code=ERROR_CODE, msg=msg, data=data)
 
+    @classmethod
+    def notfound(cls, msg: str = "Not Found"):
+        return cls(code=404, msg=msg)
+
     @model_serializer
     def serialize_model(self) -> dict[str, Any]:
         """

@@ -15,7 +15,6 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models import HttpResponse
 from app.exceptions import (
-    NotFoundException,
     BadRequestException,
     ServerUnavailableException,
     InternalServerException,
@@ -38,15 +37,20 @@ enterprise_router = APIRouter(
 )
 
 
-def get_enterprise_service() -> EnterpriseBasicInfoApplicationService:
-    """获取企业基础信息应用服务实例（依赖注入）"""
+def get_enterprise_service(db_name: str = "company_info_cn") -> EnterpriseBasicInfoApplicationService:
+    """
+    获取企业基础信息应用服务实例（依赖注入）
+    
+    Args:
+        db_name: 数据库名称，默认为 'company_info_cn'
+    """
     from app.services.postgres_service import get_postgres_service
 
-    pg_service = get_postgres_service()
+    pg_service = get_postgres_service(db_name)
     if pg_service is None or pg_service.engine is None:
-        raise RuntimeError("PostgreSQL service is not available")
+        raise RuntimeError(f"PostgreSQL service is not available for database: {db_name}")
 
-    repository = PostgresEnterpriseBasicInfoRepository()
+    repository = PostgresEnterpriseBasicInfoRepository(db_name=db_name)
     return EnterpriseBasicInfoApplicationService(repository)
 
 
@@ -66,9 +70,7 @@ async def create_enterprise_basic_info(
         return HttpResponse.success(data=created, msg="企业基础信息创建成功")
     except IntegrityError:
         # 违反唯一约束（如 credit_code 已存在）
-        raise BadRequestException(
-            f"企业基础信息创建失败：统一社会信用代码已存在（credit_code={data.credit_code}）"
-        )
+        return HttpResponse.error(f"企业基础信息创建失败：统一社会信用代码已存在（credit_code={data.credit_code}）")
     except RuntimeError as e:
         raise ServerUnavailableException(f"PostgreSQL服务不可用: {str(e)}")
     except Exception as e:  # noqa: BLE001
@@ -90,10 +92,8 @@ async def update_enterprise_basic_info(
         service = get_enterprise_service()
         updated = await service.update_enterprise(enterprise_id, data)
         if updated is None:
-            raise NotFoundException(f"企业基础信息不存在: {enterprise_id}")
+            return HttpResponse.notfound(f"企业基础信息不存在: {enterprise_id}")
         return HttpResponse.success(data=updated, msg="企业基础信息更新成功")
-    except NotFoundException:
-        raise
     except RuntimeError as e:
         raise ServerUnavailableException(f"PostgreSQL服务不可用: {str(e)}")
     except Exception as e:  # noqa: BLE001
@@ -114,10 +114,8 @@ async def get_enterprise_basic_info(
         service = get_enterprise_service()
         enterprise = await service.get_enterprise(enterprise_id)
         if enterprise is None:
-            raise NotFoundException(f"企业基础信息不存在: {enterprise_id}")
+            return HttpResponse.notfound(f"企业基础信息不存在: {enterprise_id}")
         return HttpResponse.success(data=enterprise, msg="查询成功")
-    except NotFoundException:
-        raise
     except RuntimeError as e:
         raise ServerUnavailableException(f"PostgreSQL服务不可用: {str(e)}")
     except Exception as e:  # noqa: BLE001
@@ -138,10 +136,8 @@ async def get_enterprise_basic_info_by_credit_code(
         service = get_enterprise_service()
         enterprise = await service.get_enterprise_by_credit_code(credit_code)
         if enterprise is None:
-            raise NotFoundException(f"企业基础信息不存在: {credit_code}")
+            return HttpResponse.notfound(f"企业基础信息不存在: {credit_code}")
         return HttpResponse.success(data=enterprise, msg="查询成功")
-    except NotFoundException:
-        raise
     except RuntimeError as e:
         raise ServerUnavailableException(f"PostgreSQL服务不可用: {str(e)}")
     except Exception as e:  # noqa: BLE001
@@ -162,10 +158,8 @@ async def delete_enterprise_basic_info(
         service = get_enterprise_service()
         deleted = await service.delete_enterprise(enterprise_id)
         if not deleted:
-            raise NotFoundException(f"企业基础信息不存在: {enterprise_id}")
+            return HttpResponse.notfound(f"企业基础信息不存在: {enterprise_id}")
         return HttpResponse.success(data=True, msg="企业基础信息删除成功")
-    except NotFoundException:
-        raise
     except RuntimeError as e:
         raise ServerUnavailableException(f"PostgreSQL服务不可用: {str(e)}")
     except Exception as e:  # noqa: BLE001
@@ -194,7 +188,7 @@ async def upload_enterprise_basic_info_csv(
     - registered_address
     """
     if not file.filename.lower().endswith(".csv"):
-        raise BadRequestException("仅支持上传 CSV 文件")
+        return HttpResponse.error("仅支持上传 CSV 文件")
 
     try:
         service = get_enterprise_service()

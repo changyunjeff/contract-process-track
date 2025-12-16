@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pydantic_yaml import parse_yaml_file_as, parse_yaml_raw_as, to_yaml_file
+from typing import Dict
 import yaml
 import os
 
@@ -99,6 +100,47 @@ def get_redis_config() -> RedisConfig | None:
     return get_global_config().redis
 
 
-def get_postgres_config() -> PostgresConfig | None:
-    """Get PostgreSQL configuration from global config."""
-    return get_global_config().postgres
+def get_postgres_config(db_name: str | None = None) -> PostgresConfig | None:
+    """
+    Get PostgreSQL configuration from global config.
+    
+    Args:
+        db_name: Database name (e.g., 'company_info_cn', 'law_cn'). 
+                 If None, returns the first database config or legacy postgres config.
+    
+    Returns:
+        PostgresConfig or None if not found
+    """
+    global_config = get_global_config()
+    
+    # 优先使用新的 databases 配置
+    if global_config.databases:
+        if db_name:
+            return global_config.databases.get(db_name)
+        # 如果没有指定 db_name，返回第一个数据库配置
+        if global_config.databases:
+            return next(iter(global_config.databases.values()))
+    
+    # 向后兼容：如果没有 databases 配置，使用旧的 postgres 配置
+    return global_config.postgres
+
+
+def get_all_database_configs() -> Dict[str, PostgresConfig]:
+    """
+    Get all database configurations.
+    
+    Returns:
+        Dictionary mapping database names to PostgresConfig
+    """
+    global_config = get_global_config()
+    
+    if global_config.databases:
+        return global_config.databases
+    
+    # 向后兼容：如果没有 databases 配置，使用旧的 postgres 配置
+    result = {}
+    if global_config.postgres:
+        # 使用数据库名作为 key，如果没有则使用 'default'
+        db_name = global_config.postgres.database or 'default'
+        result[db_name] = global_config.postgres
+    return result

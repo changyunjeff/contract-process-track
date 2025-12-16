@@ -5,7 +5,7 @@ app:
   version: "0.1.0"
 
 redis:
-  host: "localhost"
+  host: "redis"
   port: 6379
   db: 0
   decode_responses: true
@@ -13,3 +13,23 @@ redis:
   socket_connect_timeout: 5
   retry_on_timeout: true
   health_check_interval: 30
+
+databases:
+  company_info_cn:
+    host: "postgres"
+    port: 5432
+    database: "company_info_cn"
+    user: "admin"
+    password: null
+    echo: false
+    pool_size: 5
+    max_overflow: 10
+  law_cn:
+    host: "postgres"
+    port: 5432
+    database: "law_cn"
+    user: "admin"
+    password: null
+    echo: false
+    pool_size: 5
+    max_overflow: 10

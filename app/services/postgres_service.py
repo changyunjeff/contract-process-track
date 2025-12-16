@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional, AsyncIterator
+from typing import Optional, AsyncIterator, Dict
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -12,14 +12,14 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.config import get_postgres_config
+from app.config import get_postgres_config, get_all_database_configs
 from app.configs import PostgresConfig
 
 
 logger = logging.getLogger(__name__)
 
-_engine: Optional[AsyncEngine] = None
-_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
+# 存储多个数据库服务的字典，key 为数据库名称
+_pg_services: Dict[str, PostgresService] = {}
 
 
 class PostgresService:
@@ -112,35 +112,121 @@ class PostgresService:
             await session.close()
 
 
-_pg_service: Optional[PostgresService] = None
+def init_postgres_service(
+    config: Optional[PostgresConfig] = None, 
+    db_name: Optional[str] = None
+) -> PostgresService:
+    """
+    Initialize PostgreSQL service and engine for a specific database.
+    
+    Args:
+        config: Optional PostgresConfig. If None, will load from config file.
+        db_name: Database name (e.g., 'company_info_cn', 'law_cn'). 
+                 If None and config is None, will initialize all databases from config.
+    
+    Returns:
+        PostgresService instance
+    """
+    global _pg_services
+    
+    if config is not None:
+        # 如果提供了 config，使用它
+        if db_name is None:
+            db_name = config.database or 'default'
+        
+        if db_name not in _pg_services:
+            service = PostgresService(config)
+            service.init_engine()
+            _pg_services[db_name] = service
+        return _pg_services[db_name]
+    
+    # 如果没有提供 config，从配置文件加载
+    if db_name:
+        # 初始化指定的数据库
+        config = get_postgres_config(db_name)
+        if config is None:
+            raise ValueError(f"Database configuration not found for: {db_name}")
+        
+        if db_name not in _pg_services:
+            service = PostgresService(config)
+            service.init_engine()
+            _pg_services[db_name] = service
+        return _pg_services[db_name]
+    else:
+        # 初始化所有配置的数据库
+        all_configs = get_all_database_configs()
+        if not all_configs:
+            logger.warning("No database configurations found")
+            return None
+        
+        for name, cfg in all_configs.items():
+            if name not in _pg_services:
+                service = PostgresService(cfg)
+                service.init_engine()
+                _pg_services[name] = service
+                logger.info(f"Initialized database service: {name}")
+        
+        # 返回第一个服务（向后兼容）
+        if _pg_services:
+            return next(iter(_pg_services.values()))
+        return None
 
 
-def init_postgres_service(config: Optional[PostgresConfig] = None) -> PostgresService:
-    """Initialize global PostgreSQL service and engine."""
-    global _pg_service
-    if _pg_service is None:
-        _pg_service = PostgresService(config)
-        _pg_service.init_engine()
-    return _pg_service
+async def close_postgres_service(db_name: Optional[str] = None) -> None:
+    """
+    Dispose PostgreSQL service engine(s).
+    
+    Args:
+        db_name: Database name. If None, closes all database services.
+    """
+    global _pg_services
+    
+    if db_name:
+        if db_name in _pg_services:
+            await _pg_services[db_name].dispose()
+            del _pg_services[db_name]
+            logger.info(f"Closed database service: {db_name}")
+    else:
+        # 关闭所有数据库服务
+        for name, service in list(_pg_services.items()):
+            await service.dispose()
+            logger.info(f"Closed database service: {name}")
+        _pg_services.clear()
 
 
-async def close_postgres_service() -> None:
-    """Dispose global PostgreSQL service engine."""
-    global _pg_service
-    if _pg_service is not None:
-        await _pg_service.dispose()
-        _pg_service = None
+def get_postgres_service(db_name: Optional[str] = None) -> Optional[PostgresService]:
+    """
+    Get PostgreSQL service instance.
+    
+    Args:
+        db_name: Database name. If None, returns the first available service.
+    
+    Returns:
+        PostgresService instance or None
+    """
+    if db_name:
+        return _pg_services.get(db_name)
+    
+    # 向后兼容：返回第一个服务
+    if _pg_services:
+        return next(iter(_pg_services.values()))
+    return None
 
 
-def get_postgres_service() -> Optional[PostgresService]:
-    """Get global PostgreSQL service instance."""
-    return _pg_service
-
-
-def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
-    """Shortcut for getting global async session factory."""
-    service = get_postgres_service()
+def get_async_session_factory(db_name: Optional[str] = None) -> async_sessionmaker[AsyncSession]:
+    """
+    Shortcut for getting async session factory.
+    
+    Args:
+        db_name: Database name. If None, uses the first available service.
+    
+    Returns:
+        async_sessionmaker instance
+    """
+    service = get_postgres_service(db_name)
     if service is None:
+        if db_name:
+            raise RuntimeError(f"PostgreSQL service not initialized for database: {db_name}")
         raise RuntimeError("PostgreSQL service not initialized")
     return service.get_session_factory()
 

@@ -14,12 +14,22 @@ redis:
   retry_on_timeout: true
   health_check_interval: 30
 
-postgres:
-  host: "localhost"
-  port: 5432
-  database: "company_info_cn"
-  user: "admin"
-  password: null
-  echo: false
-  pool_size: 5
-  max_overflow: 10
+databases:
+  company_info_cn:
+    host: "localhost"
+    port: 5432
+    database: "company_info_cn"
+    user: "admin"
+    password: null
+    echo: false
+    pool_size: 5
+    max_overflow: 10
+  law_cn:
+    host: "localhost"
+    port: 5432
+    database: "law_cn"
+    user: "admin"
+    password: null
+    echo: false
+    pool_size: 5
+    max_overflow: 10

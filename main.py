@@ -41,9 +41,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.warning(f"⚠️ Redis initialization failed: {str(e)}. Continuing without Redis.")
 
-    # Initialize PostgreSQL connection (engine & session factory)
+    # Initialize PostgreSQL connections for all configured databases
     try:
-        init_postgres_service()
+        init_postgres_service()  # 初始化所有配置的数据库
     except Exception as e:
         logger.warning(
             f"⚠️ PostgreSQL initialization failed: {str(e)}. "
@@ -60,9 +60,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.warning(f"⚠️ Redis shutdown error: {str(e)}")
 
-    # Dispose PostgreSQL engine
+    # Dispose all PostgreSQL engines
     try:
-        await close_postgres_service()
+        await close_postgres_service()  # 关闭所有数据库连接
     except Exception as e:
         logger.warning(f"⚠️ PostgreSQL shutdown error: {str(e)}")
 
@@ -127,10 +127,10 @@ def is_debug_mode(_mode: str) -> bool:
 
 
 def worker_count() -> int:
-    return os.cpu_count() or 1
+    return  1 # os.cpu_count()
 
 
-# Create app instance at module level for uvicorn reload support
+# Create an app instance at module level for uvicorn reload support
 cfg = get_app_config()
 app = create_app(cfg)
 
@@ -141,16 +141,17 @@ if __name__ == "__main__":
     uvicorn_config = {
         "host": cfg.host,
         "port": cfg.port,
-        "reload": debug,
-        "workers": worker_count() if not debug else 1,
-        "log_config": None,  # forbidden uvicorn default log config.
+        # "reload": debug,
+        # "workers": worker_count() if not debug else 1,
+        "log_config": None,
     }
     
+    # Always pass as import string when using reload or workers>1
+    # This avoids uvicorn's warning and supports both dev (reload) and prod (workers>1)
+
     if debug:
-        # In reload mode, pass app as import string
         uvicorn_config["app"] = "main:app"
     else:
-        # In production mode, pass app instance directly
         uvicorn_config["app"] = app
 
     uvicorn.run(**uvicorn_config)
