@@ -23,6 +23,10 @@ class HttpResponse(BaseModel, Generic[T]):
     def notfound(cls, msg: str = "Not Found"):
         return cls(code=404, msg=msg)
 
+    @classmethod
+    def duplicate(cls, msg: str = "Duplicate"):
+        return cls(code=409, msg=msg)
+
     @model_serializer
     def serialize_model(self) -> dict[str, Any]:
         """

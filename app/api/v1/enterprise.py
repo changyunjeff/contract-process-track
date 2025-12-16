@@ -70,7 +70,7 @@ async def create_enterprise_basic_info(
         return HttpResponse.success(data=created, msg="企业基础信息创建成功")
     except IntegrityError:
         # 违反唯一约束（如 credit_code 已存在）
-        return HttpResponse.error(f"企业基础信息创建失败：统一社会信用代码已存在（credit_code={data.credit_code}）")
+        return HttpResponse.duplicate(f"企业基础信息创建失败：统一社会信用代码已存在（credit_code={data.credit_code}）")
     except RuntimeError as e:
         raise ServerUnavailableException(f"PostgreSQL服务不可用: {str(e)}")
     except Exception as e:  # noqa: BLE001
