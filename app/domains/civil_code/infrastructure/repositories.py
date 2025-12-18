@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ..domain.entities import CivilCodeArticle
 from ..domain.repositories import ICivilCodeArticleRepository
 from app.services.postgres_service import get_async_session_factory
-from app.tools import datetime_to_timestamp_ms
+from app.common import datetime_to_timestamp_ms
 
 
 logger = logging.getLogger(__name__)

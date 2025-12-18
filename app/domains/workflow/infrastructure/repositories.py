@@ -13,7 +13,7 @@ from typing import Optional
 from ..domain.entities import WorkflowProgress
 from ..domain.repositories import IWorkflowProgressRepository
 from app.services.redis_service import get_redis_service
-from app.tools import datetime_to_timestamp_ms
+from app.common import datetime_to_timestamp_ms
 
 logger = logging.getLogger(__name__)
 

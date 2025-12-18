@@ -21,6 +21,7 @@ services:
       # 挂载静态文件目录（如果需要上传文件）
       - ./static:/app/static
       - ./.env:/app/.env:ro
+      - /home/chang/files:/data/files
     restart: unless-stopped
     healthcheck:
       # 健康检查端点: /api/health

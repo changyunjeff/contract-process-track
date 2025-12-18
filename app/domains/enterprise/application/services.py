@@ -16,7 +16,7 @@ from .dto import (
     EnterpriseBasicInfoUpdateDTO,
     EnterpriseBasicInfoDTO,
 )
-from app.tools import current_timestamp_ms
+from app.common import current_timestamp_ms
 
 logger = logging.getLogger(__name__)
 

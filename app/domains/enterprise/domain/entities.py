@@ -9,7 +9,7 @@ from datetime import datetime, date
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from app.tools import current_timestamp_ms
+from app.common import current_timestamp_ms
 
 
 class EnterpriseBasicInfo(BaseModel):

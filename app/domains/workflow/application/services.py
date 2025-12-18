@@ -12,7 +12,7 @@ from typing import Optional
 from ..domain.entities import WorkflowProgress
 from ..domain.repositories import IWorkflowProgressRepository
 from .dto import WorkflowProgressCreateDTO, WorkflowProgressUpdateDTO, WorkflowProgressDTO
-from app.tools import current_timestamp_ms
+from app.common import current_timestamp_ms
 
 logger = logging.getLogger(__name__)
 

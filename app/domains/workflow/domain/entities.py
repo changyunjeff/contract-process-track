@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
-from app.tools import current_timestamp_ms
+from app.common import current_timestamp_ms
 
 
 class WorkflowProgress(BaseModel):
